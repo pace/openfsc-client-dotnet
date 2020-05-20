@@ -8,7 +8,7 @@ class Program
         FuelingSiteConnect.Client fsc = new FuelingSiteConnect.Client(new string[] {"PRODUCTS", "PRICES", "PUMPS", "PUMPSTATUS", "TRANSACTIONS", "CLEAR", "UNLOCKPUMP", "LOCKPUMP"});
         fsc.Connect(new Uri("wss://fsc.sandbox.k8s.pacelink.net/ws/text")).Wait();
 
-        var session = fsc.Session;    // Option: .NewSession("session1");
+        var session = fsc.Session;  // or multiple: .NewSession("<prefix>");
 
         session.productsDelegate = SendProducts;
         session.pricesDelegate = SendPrices;
