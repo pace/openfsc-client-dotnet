@@ -15,6 +15,7 @@ class Program
         session.pumpsDelegate = SendPumps;
         session.pumpStatusDelegate = SendPumpStatus;
         session.transactionsDelegate = SendTransactions;
+        session.panDelegate = PanReceived;
         session.clearTransactionDelegate = ClearTransaction;
         session.unlockPumpDelegate = UnlockPump;
         session.lockPumpDelegate = LockPump;
@@ -88,6 +89,13 @@ class Program
             return (404, "No transactions found");
 
         // If updateTTL > 0: Send transactions matching mathing the pump selection pro-actively for given amount of seconds.
+    }
+
+    static (int code, string message) PanReceived(FuelingSiteConnect.Session fscs, string paceTransactionId, string pan)
+    {
+        // Do whatever you want with the PAN ;-)
+        
+        return (200, null);
     }
 
     static (int code, string message) ClearTransaction(FuelingSiteConnect.Session fscs, int pump, string siteTransactionId, string paceTransactionId)
