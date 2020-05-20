@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 
 namespace FuelingSiteConnect 
 {
+    // Delegates to be implemented by POS connector
     public delegate (int code, string message) ProductsRequestDelegate(Session fscs);
     public delegate (int code, string message) PricesRequestDelegate(Session fscs);
     public delegate (int code, string message) PumpsRequestDelegate(Session fscs);
@@ -72,7 +73,7 @@ namespace FuelingSiteConnect
             await SendMessage("RECEIPTINFO", $"{paceTransactionId} {key} {value}", false);
         }
 
-        public async Task HeartbeatResponse(string tag) 
+        private async Task HeartbeatResponse(string tag) 
         {
             await SendMessage("BEAT", $"{DateTime.Now.ToString("O")}", false, tag);  // Option: .ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK")
             await SendOk(tag);
@@ -83,12 +84,12 @@ namespace FuelingSiteConnect
             await SendMessage("QUIT", $"{message}", false);
         }
 
-        public async Task SendOk(string tag = "*") 
+        private async Task SendOk(string tag = "*") 
         {
             await SendMessage("OK", null, false, tag);
         }
 
-        public async Task SendError(int code, string message, string tag = "*") 
+        private async Task SendError(int code, string message, string tag = "*") 
         {
             await SendMessage("ERR", $"{code} {message}", false, tag);
         }
