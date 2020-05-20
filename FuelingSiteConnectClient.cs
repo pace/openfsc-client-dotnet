@@ -70,11 +70,20 @@ namespace FuelingSiteConnect
         // Todo: List all sessions (and sync with server before!)
         public Session[] ListSessions() 
         {
-            SendMessage("SESSIONS").Wait();
+            SendMessage("SESSIONS", null, true).Wait();
+
+            // Todo: Match returned session list with local session list
+            // Throw out of sync error if lists don't match
 
             Session[] result = new Session[sessions.Count];
             sessions.Values.CopyTo(result, 0);
+            
             return result;
+        }
+
+        private void HandleSessionResponse(string args)
+        {
+            // Todo: parse response + hand over to running "ListSessions()"
         }
 
         public async Task SendMessage(string method, string args = null, bool expectResponse = false, string tag = "*")
@@ -128,6 +137,9 @@ namespace FuelingSiteConnect
                 switch (method) {
                     case "CAPABILITY":
                         ParseServerCapabilities(args);
+                        break;
+                    case "SESSION":
+                        HandleSessionResponse(args);
                         break;
                     default:
                         Session.HandleMessage(tag, method, args);
