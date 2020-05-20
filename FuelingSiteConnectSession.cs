@@ -9,6 +9,7 @@ namespace FuelingSiteConnect
     public delegate (int code, string message) PumpsRequestDelegate(Session fscs);
     public delegate (int code, string message) PumpStatusRequestDelegate(Session fscs, int pump, int updateTTL = 0);
     public delegate (int code, string message) TransactionsRequestDelegate(Session fscs, int pump = 0, int updateTTL = 0);
+    public delegate (int code, string message) PanMessageDelegate(Session fscs, string paceTransactionId, string pan);
     public delegate (int code, string message) ClearTransactionRequestDelegate(Session fscs, int pump, string siteTransactionId, string paceTransactionId);
     public delegate (int code, string message) UnlockPumpRequestDelegate(Session fscs, int pump, string currency, decimal credit, string paceTransactionId, string[] productIds);
     public delegate (int code, string message) LockPumpRequestDelegate(Session fscs, int pump);
@@ -28,6 +29,7 @@ namespace FuelingSiteConnect
         public PumpsRequestDelegate pumpsDelegate;
         public PumpStatusRequestDelegate pumpStatusDelegate;
         public TransactionsRequestDelegate transactionsDelegate;
+        public PanMessageDelegate panDelegate;
         public ClearTransactionRequestDelegate clearTransactionDelegate;
         public UnlockPumpRequestDelegate unlockPumpDelegate;
         public LockPumpRequestDelegate lockPumpDelegate;
@@ -186,6 +188,18 @@ namespace FuelingSiteConnect
                     else 
                     {
                         (code, message) = transactionsDelegate(this, argv.Count() > 0 ? Int32.Parse(argv[0]) : 0);
+                        if (code == 200)
+                            SendOk(tag).Wait();
+                        else
+                            SendError(code, message, tag).Wait();
+                    }
+                    break;
+                case "PAN":
+                    if (panDelegate == null) 
+                        SendError(500, "Can't handle message: No PAN delegate registered.", tag).Wait();
+                    else 
+                    {
+                        (code, message) = panDelegate(this, argv[0], argv[1]);
                         if (code == 200)
                             SendOk(tag).Wait();
                         else
