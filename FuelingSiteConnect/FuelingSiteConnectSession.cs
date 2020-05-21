@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 namespace FuelingSiteConnect 
 {
     // Delegates to be implemented by POS connector
+    // TODO: Why no interface?
     public delegate (int code, string message) ProductsRequestDelegate(Session fscs);
     public delegate (int code, string message) PricesRequestDelegate(Session fscs);
     public delegate (int code, string message) PumpsRequestDelegate(Session fscs);

@@ -99,7 +99,7 @@ namespace FuelingSiteConnect
 
             Console.WriteLine($"SND: {data}");
 
-            await socket.SendAsync(Encoding.UTF8.GetBytes($"{data}\r\n"), WebSocketMessageType.Text, true, CancellationToken.None);
+            await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes($"{data}\r\n")), WebSocketMessageType.Text, true, CancellationToken.None);
         }
 
         public async Task Quit(string message = "Bye bye") 
@@ -110,16 +110,16 @@ namespace FuelingSiteConnect
 
         private void ParseMessage(string input) 
         {
-            string[] tagMethodArgs = input.Split((char)32, 2);
+            string[] tagMethodArgs = input.Split(new char[] { (char)32 }, 2);
             var tag = tagMethodArgs[0];
             var message = Message.FromInput(tagMethodArgs[1]);
 
-            Console.WriteLine($"RCV: {tag} {message}");
+            Console.WriteLine($"> {tag} {message}");
             var selectedSession = Session;
 
             if (tag.Contains(".")) 
             {
-                string[] prefixTag = tag.Split((char)46, 2);
+                string[] prefixTag = tag.Split(new char[] { (char)46 }, 2);
                 string prefix = prefixTag[0];
                 tag = prefixTag[1];
                 selectedSession = GetSession(prefix);

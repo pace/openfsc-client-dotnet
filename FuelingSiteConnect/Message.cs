@@ -77,7 +77,7 @@ namespace FuelingSiteConnect
 
         internal static Message FromInput(string input)
         {
-            var splitted = input.Split(separator);
+            var splitted = input.Split(separator.ToCharArray());
             var method = splitted[0];
             var arguments = new string[0];
 
