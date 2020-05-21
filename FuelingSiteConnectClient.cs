@@ -38,10 +38,10 @@ namespace FuelingSiteConnect
 
             receiveTask = Receive();
 
-            await SendMessage("CAPABILITY", $"{string.Join(" ", clientCapabilities)}");
+            await SendMessage(Message.ClientCapabilities.WithArguments(clientCapabilities));
 
             rootSession = new Session(this);
-            await SendMessage("CHARSET", "UTF-8", true);
+            await SendMessage(Message.Charset.WithArguments("UTF-8"), true);
         }
 
         public bool CapabilitySupported(string serverCapability) 
@@ -55,9 +55,9 @@ namespace FuelingSiteConnect
 
         public Session NewSession(string prefix)
         {
-            SendMessage("NEWSESSION", $"{prefix}", true).Wait();
+            SendMessage(Message.NewSession.WithArguments(prefix), true).Wait();
             Session newSession = new Session(this, prefix);
-            this.sessions.Add(prefix, newSession);
+            sessions.Add(prefix, newSession);
             return newSession;
         }
 
@@ -70,7 +70,7 @@ namespace FuelingSiteConnect
         // Todo: List all sessions (and sync with server before!)
         public Session[] ListSessions() 
         {
-            SendMessage("SESSIONS", null, true).Wait();
+            SendMessage(Message.Sessions, true).Wait();
 
             // Todo: Match returned session list with local session list
             // Throw out of sync error if lists don't match
@@ -81,22 +81,21 @@ namespace FuelingSiteConnect
             return result;
         }
 
-        private void HandleSessionResponse(string args)
+        private void HandleSessionResponse()
         {
             // Todo: parse response + hand over to running "ListSessions()"
         }
 
-        public async Task SendMessage(string method, string args = null, bool expectResponse = false, string tag = "*")
+        public async Task SendMessage(Message message, bool expectResponse = false, string tag = "*")
         {
-            if (!CapabilitySupported(method)) {
-                Console.WriteLine($"Method not supported by Server: {method}.");
+            if (!CapabilitySupported(message.method)) {
+                Console.WriteLine($"Method not supported by Server: {message.method}.");
                 return;
             }
 
             if (expectResponse && tag == "*") tag = $"C{Session.nextSequence}";
 
-            var data = $"{tag} {method}";
-            if (args != null) data = $"{data} {args}";
+            var data = $"{tag} {message}";
 
             Console.WriteLine($"SND: {data}");
 
@@ -109,42 +108,47 @@ namespace FuelingSiteConnect
             await receiveTask;
         }
 
-        private void ParseServerCapabilities(string args) 
+        private void ParseMessage(string input) 
         {
-            serverCapabilities = args.Split((char)32);
-        }
+            string[] tagMethodArgs = input.Split((char)32, 2);
+            var tag = tagMethodArgs[0];
+            var message = Message.FromInput(tagMethodArgs[1]);
 
-        private void ParseMessage(string message) 
-        {
-            string[] tagMethodArgs = message.Split((char)32, 3);
-            string tag = tagMethodArgs[0], method = tagMethodArgs[1];
-            string args = null;
-            if (tagMethodArgs.Count() > 2) 
-            {
-                args = tagMethodArgs[2];
-            }
-            Console.WriteLine($"RCV: {tag} {method} {args}");
+            Console.WriteLine($"RCV: {tag} {message}");
+            var selectedSession = Session;
 
             if (tag.Contains(".")) 
             {
                 string[] prefixTag = tag.Split((char)46, 2);
                 string prefix = prefixTag[0];
                 tag = prefixTag[1];
-                GetSession(prefix).HandleMessage(tag, method, args);
+                selectedSession = GetSession(prefix);
             }
-            else 
+
+            var response = message.Evaluate(Session);
+
+            if (response.messages != null)
             {
-                switch (method) {
-                    case "CAPABILITY":
-                        ParseServerCapabilities(args);
-                        break;
-                    case "SESSION":
-                        HandleSessionResponse(args);
-                        break;
-                    default:
-                        Session.HandleMessage(tag, method, args);
-                        break;
-                }
+                response.messages.ForEach(f => SendMessage(f, false, tag).Wait());
+            }
+
+            if (response.actions != null)
+            {
+                response.actions.ForEach(f =>
+                {
+                    if (!Session.HandleAction(f))
+                    {
+                        switch (f)
+                        {
+                            case Action.SetServerCapabilities:
+                                serverCapabilities = message.arguments;
+                                break;
+
+                            // Todo: parse response + hand over to running "ListSessions()"
+                            // case Action.SessionResponse
+                        }
+                    }
+                });
             }
         }
 

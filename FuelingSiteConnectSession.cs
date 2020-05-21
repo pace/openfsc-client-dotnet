@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace FuelingSiteConnect 
@@ -18,11 +20,13 @@ namespace FuelingSiteConnect
     public class Session 
     {
         private Client fsc;
-        private string _prefix = null; public string prefix { get => _prefix; }
+
+        public string prefix { get; } = null;
         private ulong clientSequence = 0; public ulong nextSequence { get { clientSequence++; return clientSequence; } }
         private string siteAccessKey;
-        private bool _active = true; public bool active { get => _active; }
-        private bool _authenticated = false; public bool authenticated { get => _authenticated; }
+
+        public bool active { get; private set; } = true;
+        public bool authenticated { get; } = false;
         private string secret;
 
         public ProductsRequestDelegate productsDelegate;
@@ -38,63 +42,73 @@ namespace FuelingSiteConnect
         public Session(Client client, string prefix = null)
         {
             this.fsc = client;
-            this._prefix = prefix;
+            this.prefix = prefix;
         }
 
         public async Task Authenticate(string siteAccessKey, string secret) 
         {
             this.siteAccessKey = siteAccessKey;
             this.secret = secret;
-            await SendMessage("PLAINAUTH", $"{siteAccessKey} {secret}");
+            await SendMessage(Message.PlainAuth.WithArguments(siteAccessKey, secret));
         }
 
         public async Task Price(string productId, string unit, string currency, decimal pricePerUnit, string description) 
         {
-            await SendMessage("PRICE", $"{productId} {unit} {currency} {pricePerUnit:0.0000} {description}", false);
+            await SendMessage(Message.Price.WithArguments(productId, unit, currency, $"{pricePerUnit:0.0000}", description), false);
         }
 
         public async Task Product(string productId, string category, decimal vatRate) 
         {
-            await SendMessage("PRODUCT", $"{productId} {category} {vatRate:0.00}", false);
+            await SendMessage(Message.Product.WithArguments(productId, category, $"{vatRate:0.00}"));
         }
 
         public async Task Pump(int pump, string status) 
         {
-            await SendMessage("PUMP", $"{pump} {status}", false);
+            await SendMessage(Message.Pump.WithArguments(pump.ToString(), status), false);
         }
 
-        public async Task Transaction(int pump, string siteTransactionId, string status, string productId, string currency, decimal priceWithVat, decimal priceWithoutVat, decimal vatRate, decimal vatAmount, string unit, decimal volume, decimal pricePerUnit) 
+        public async Task Transaction(
+            int pump,
+            string siteTransactionId,
+            string status,
+            string productId,
+            string currency,
+            decimal priceWithVat,
+            decimal priceWithoutVat,
+            decimal vatRate,
+            decimal vatAmount,
+            string unit,
+            decimal volume,
+            decimal pricePerUnit
+            ) 
         {
-            await SendMessage("TRANSACTION", $"{pump} {siteTransactionId} {status} {productId} {currency} {priceWithVat:0.00} {priceWithoutVat:0.00} {vatRate:0.00} {vatAmount:0.00} {unit} {volume:0.0000} {pricePerUnit:0.0000}", false);
+            await SendMessage(Message.Transaction.WithArguments(
+                pump.ToString(),
+                siteTransactionId,
+                status,
+                productId,
+                currency,
+                $"{priceWithVat:0.00}",
+                $"{priceWithoutVat:0.00}",
+                $"{vatRate:0.00}",
+                $"{vatAmount:0.00}",
+                $"{unit}",
+                $"{volume:0.0000}",
+                $"{pricePerUnit:0.0000}"
+                ), false);
         }
 
         public async Task ReceiptInfo(string paceTransactionId, string key, string value) 
         {
-            await SendMessage("RECEIPTINFO", $"{paceTransactionId} {key} {value}", false);
+            await SendMessage(Message.ReceiptInfo.WithArguments(paceTransactionId, key, value), false);
         }
 
-        private async Task HeartbeatResponse(string tag) 
+        public async Task Quit(string reason = "Bye bye") 
         {
-            await SendMessage("BEAT", $"{DateTime.Now.ToString("O")}", false, tag);  // Option: .ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK")
-            await SendOk(tag);
+            await SendMessage(Message.Quit.WithArguments(reason), false);
         }
 
-        public async Task Quit(string message = "Bye bye") 
-        {
-            await SendMessage("QUIT", $"{message}", false);
-        }
-
-        private async Task SendOk(string tag = "*") 
-        {
-            await SendMessage("OK", null, false, tag);
-        }
-
-        private async Task SendError(int code, string message, string tag = "*") 
-        {
-            await SendMessage("ERR", $"{code} {message}", false, tag);
-        }
-
-        private async Task SendMessage(string method, string args = null, bool expectResponse = true, string tag = "*")
+        private async Task SendMessage(Message message, bool expectResponse = true, string tag = "*")
         {
             if (expectResponse)
             {
@@ -103,150 +117,23 @@ namespace FuelingSiteConnect
             if (prefix != null) {
                 tag = $"{prefix}.{tag}";
             }
-            await fsc.SendMessage(method, args, expectResponse, tag);
+            await fsc.SendMessage(message, expectResponse, tag);
         }
 
-        private void HandleResponse(string tag, string response, string message) 
+        internal bool HandleAction(Action action)
         {
+            switch (action)
+            {
+                case Action.SetActive:
+                    active = true;
+                    break;
 
-        }
+                case Action.SetInactive:
+                    active = false;
+                    break;
 
-        private void HandleSessionmode(string mode) 
-        {
-            _active = mode == "active";
-        }
-
-        public bool HandleMessage(string tag, string method, string args) 
-        {
-            string[] argv = args == null ? new string[0] : args.Split((char)32);
-            int code;
-            string message;
-
-            switch (method) {
-                case "HEARTBEAT":
-                    HeartbeatResponse(tag).Wait();
-                    break;
-                case "OK":
-                    HandleResponse(tag, method, args);
-                    break;
-                case "ERR":
-                    HandleResponse(tag, method, args);
-                    break;
-                case "SESSIONMODE":
-                    HandleSessionmode(args);
-                    break;
-                case "PRODUCTS":
-                    if (productsDelegate == null) 
-                        SendError(500, "Can't handle request: No PRODUCTS delegate registered.", tag).Wait();
-                    else 
-                    {
-                        (code, message) = productsDelegate(this);
-                        if (code == 200)
-                            SendOk(tag).Wait();
-                        else
-                            SendError(code, message, tag).Wait();
-                    }
-                    break;
-                case "PRICES":
-                    if (pricesDelegate == null) 
-                        SendError(500, "Can't handle request: No PRICES delegate registered.", tag).Wait();
-                    else 
-                    {
-                        (code, message) = pricesDelegate(this);
-                        if (code == 200)
-                            SendOk(tag).Wait();
-                        else
-                            SendError(code, message, tag).Wait();
-                    }
-                    break;
-                case "PUMPS":
-                    if (pumpsDelegate == null) 
-                        SendError(500, "Can't handle request: No PUMPS delegate registered.", tag).Wait();
-                    else 
-                    {
-                        (code, message) = pumpsDelegate(this);
-                        if (code == 200)
-                            SendOk(tag).Wait();
-                        else
-                            SendError(code, message, tag).Wait();
-                    }
-                    break;
-                case "PUMPSTATUS":
-                    if (pumpStatusDelegate == null) 
-                        SendError(500, "Can't handle request: No PUMPSTATUS delegate registered.", tag).Wait();
-                    else 
-                    {
-                        (code, message) = pumpStatusDelegate(this, Int32.Parse(argv[0]), argv.Count() > 1 ? Int32.Parse(argv[1]) : 0);
-                        if (code == 200)
-                            SendOk(tag).Wait();
-                        else
-                            SendError(code, message, tag).Wait();
-                    }
-                    break;
-                case "TRANSACTIONS":
-                    if (transactionsDelegate == null) 
-                        SendError(500, "Can't handle request: No TRANSACTIONS delegate registered.", tag).Wait();
-                    else 
-                    {
-                        (code, message) = transactionsDelegate(this, argv.Count() > 0 ? Int32.Parse(argv[0]) : 0);
-                        if (code == 200)
-                            SendOk(tag).Wait();
-                        else
-                            SendError(code, message, tag).Wait();
-                    }
-                    break;
-                case "PAN":
-                    if (panDelegate == null) 
-                        SendError(500, "Can't handle message: No PAN delegate registered.", tag).Wait();
-                    else 
-                    {
-                        (code, message) = panDelegate(this, argv[0], argv[1]);
-                        if (code == 200)
-                            SendOk(tag).Wait();
-                        else
-                            SendError(code, message, tag).Wait();
-                    }
-                    break;
-                case "CLEAR":
-                    if (clearTransactionDelegate == null) 
-                        SendError(500, "Can't handle request: No CLEAR delegate registered.", tag).Wait();
-                    else 
-                    {
-                        (code, message) = clearTransactionDelegate(this, Int32.Parse(argv[0]), argv.Count() > 1 ? argv[1] : null, argv.Count() > 2 ? argv[2] : null);
-                        if (code == 200)
-                            SendOk(tag).Wait();
-                        else
-                            SendError(code, message, tag).Wait();
-                    }
-                    break;
-                case "UNLOCKPUMP":
-                    if (unlockPumpDelegate == null) 
-                        SendError(500, "Can't handle request: No UNLOCKPUMP delegate registered.", tag).Wait();
-                    else 
-                    {
-                        (code, message) = unlockPumpDelegate(this, Int32.Parse(argv[0]), argv.Count() > 1 ? argv[1] : null, Decimal.Parse(argv[2]), argv.Count() > 3 ? argv[3] : null, argv);
-                        if (code == 200)
-                            SendOk(tag).Wait();
-                        else
-                            SendError(code, message, tag).Wait();
-                    }
-                    break;
-                case "LOCKPUMP":
-                    if (lockPumpDelegate == null) 
-                        SendError(500, "Can't handle request: No LOCKPUMP delegate registered.", tag).Wait();
-                    else 
-                    {
-                        (code, message) = lockPumpDelegate(this, Int32.Parse(argv[0]));
-                        if (code == 200)
-                            SendOk(tag).Wait();
-                        else
-                            SendError(code, message, tag).Wait();
-                    }
-                    break;
                 default:
-                    // Todo: Throw error (or drop silently ??)
-                    Console.WriteLine($"Don't know how to handle method: {method}.");
-                    break;
+                    return false;
             }
 
             return true;

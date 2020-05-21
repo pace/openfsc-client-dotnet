@@ -5,7 +5,7 @@ class Program
 {
     static void Main(string[] args)
     {
-        FuelingSiteConnect.Client fsc = new FuelingSiteConnect.Client(new string[] {"PRODUCTS", "PRICES", "PUMPS", "PUMPSTATUS", "TRANSACTIONS", "CLEAR", "UNLOCKPUMP", "LOCKPUMP"});
+        FuelingSiteConnect.Client fsc = new FuelingSiteConnect.Client(new string[] { "PRODUCTS", "PRICES", "PUMPS", "PUMPSTATUS", "TRANSACTIONS", "CLEAR", "UNLOCKPUMP", "LOCKPUMP" });
         fsc.Connect(new Uri("wss://fsc.sandbox.k8s.pacelink.net/ws/text")).Wait();
 
         var session = fsc.Session;  // or multiple: .NewSession("<prefix>");
@@ -31,7 +31,7 @@ class Program
     }
 
     /* DELEGATES IMPLEMENTATION */
-    static (int code, string message) SendProducts(FuelingSiteConnect.Session fscs) 
+    static (int code, string message) SendProducts(FuelingSiteConnect.Session fscs)
     {
         // Return all product mappings for all products available at the forecourt
 
@@ -42,7 +42,7 @@ class Program
         return (200, null);
     }
 
-    static (int code, string message) SendPrices(FuelingSiteConnect.Session fscs) 
+    static (int code, string message) SendPrices(FuelingSiteConnect.Session fscs)
     {
         // Return prices for all products available at the forecourt
 
@@ -71,7 +71,7 @@ class Program
         // Return status for given pumps
         if (pump == 3)
             fscs.Pump(pump, "ready-to-pay").Wait();
-        else 
+        else
             fscs.Pump(pump, "free").Wait();
 
         return (200, null);
@@ -79,13 +79,14 @@ class Program
         // If updateTTL > 0: Send pump status changes pro-actively for given amount of seconds.
     }
 
-    static (int code, string message) SendTransactions(FuelingSiteConnect.Session fscs, int pump = 0, int updateTTL = 0) 
+    static (int code, string message) SendTransactions(FuelingSiteConnect.Session fscs, int pump = 0, int updateTTL = 0)
     {
-        if (pump == 3 || pump == 0) {
+        if (pump == 3 || pump == 0)
+        {
             fscs.Transaction(3, "asdf", "open", "0010", "EUR", (decimal)59.50, (decimal)50.0, (decimal)0.19, (decimal)9.50, "LTR", (decimal)47.11, (decimal)1.119).Wait();
             return (200, null);
         }
-        else 
+        else
             return (404, "No transactions found");
 
         // If updateTTL > 0: Send transactions matching mathing the pump selection pro-actively for given amount of seconds.
@@ -94,7 +95,7 @@ class Program
     static (int code, string message) PanReceived(FuelingSiteConnect.Session fscs, string paceTransactionId, string pan)
     {
         // Do whatever you want with the PAN ;-)
-        
+
         return (200, null);
     }
 
@@ -105,7 +106,7 @@ class Program
         // return (200, null);
         if (pump == 3)
             return (200, null);
-        else 
+        else
             return (404, "PumpID unknown");
         //return (404, "SiteTransactionID unknown");
         //return (410, "SiteTransactionID not open any longer");
