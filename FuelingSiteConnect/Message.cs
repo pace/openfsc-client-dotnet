@@ -103,6 +103,7 @@ namespace FuelingSiteConnect
 
         internal static Message fromMethod(string method)
         {
+            Console.WriteLine($"Searching for method {method}");
             var message = typeof(Message).GetFields(BindingFlags.Static | BindingFlags.Public)
               .Select(f => (Message)f.GetValue(null))
               .First(f => f.method.Equals(method));
@@ -124,9 +125,8 @@ namespace FuelingSiteConnect
         public static Message ReceiptInfo = new Message("RECEIPTINFO");
         public static Message Beat = new Message("BEAT");
         public static Message Quit = new Message("QUIT");
-        public static Message Error = new Message("Err");
+        public static Message Error = new Message("ERR");
         public static Message Ok = new Message("OK");
-        public static Message ClientCapabilities = new Message("CAPABILITY");
         public static Message Charset = new Message("CHARSET");
         public static Message NewSession = new Message("NEWSESSION");
         public static Message Sessions = new Message("SESSIONS");

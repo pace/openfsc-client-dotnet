@@ -14,21 +14,18 @@ namespace FuelingSiteConnect
     {
         Uri endpoint;
         public ClientWebSocket socket;
-        private Task receiveTask;
         public string[] clientCapabilities;
         public string[] serverCapabilities;
-        private Session rootSession; public Session Session { get => rootSession; }
+        public Session Session { get; private set; }
         private Dictionary<string, Session> sessions = new Dictionary<string, Session>();
 
         public Client(string[] implementedCapabilities)
         {
             socket = new ClientWebSocket();
 
-            clientCapabilities = new string[implementedCapabilities.Count()+3];
-            clientCapabilities[0] = "HEARTBEAT";
-            clientCapabilities[1] = "SESSIONMODE";
-            clientCapabilities[2] = "QUIT";
-            implementedCapabilities.CopyTo(clientCapabilities, 3);
+            var mergedCapabilities = implementedCapabilities.ToList();
+            mergedCapabilities.AddRange(new string[] { "HEARTBEAT", "SESSIONMODE", "QUIT" });
+            clientCapabilities = mergedCapabilities.ToArray();
         }
 
         public async Task Connect(Uri endpoint)
@@ -36,11 +33,10 @@ namespace FuelingSiteConnect
             this.endpoint = endpoint;
             await socket.ConnectAsync(endpoint, CancellationToken.None);
 
-            receiveTask = Receive();
+            ReceiveTask = Receive();
+            Session = new Session(this);
 
-            await SendMessage(Message.ClientCapabilities.WithArguments(clientCapabilities));
-
-            rootSession = new Session(this);
+            await SendMessage(Message.Capability.WithArguments(clientCapabilities));
             await SendMessage(Message.Charset.WithArguments("UTF-8"), true);
         }
 
@@ -97,24 +93,30 @@ namespace FuelingSiteConnect
 
             var data = $"{tag} {message}";
 
-            Console.WriteLine($"SND: {data}");
+            Console.WriteLine($"< {data}");
 
             await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes($"{data}\r\n")), WebSocketMessageType.Text, true, CancellationToken.None);
+
+            if (expectResponse)
+            {
+                // TODO:
+            }
         }
 
         public async Task Quit(string message = "Bye bye") 
         {
             await Session.Quit(message);
-            await receiveTask;
+            await ReceiveTask;
         }
 
         private void ParseMessage(string input) 
         {
+            Console.WriteLine($"> {input}");
+
             string[] tagMethodArgs = input.Split(new char[] { (char)32 }, 2);
             var tag = tagMethodArgs[0];
             var message = Message.FromInput(tagMethodArgs[1]);
 
-            Console.WriteLine($"> {tag} {message}");
             var selectedSession = Session;
 
             if (tag.Contains(".")) 
@@ -134,25 +136,28 @@ namespace FuelingSiteConnect
 
             if (response.actions != null)
             {
-                response.actions.ForEach(f =>
+                response.actions.ForEach(action =>
                 {
-                    if (!Session.HandleAction(f))
+                    switch (action)
                     {
-                        switch (f)
-                        {
-                            case Action.SetServerCapabilities:
-                                serverCapabilities = message.arguments;
-                                break;
+                        case Action.SetServerCapabilities:
+                            serverCapabilities = message.arguments;
+                            break;
 
-                            // Todo: parse response + hand over to running "ListSessions()"
-                            // case Action.SessionResponse
-                        }
+                        // Todo: parse response + hand over to running "ListSessions()"
+                        // case Action.SessionResponse
+
+                        default:
+                            Session.HandleAction(action);
+                            break;
                     }
+
+                    Console.WriteLine($"ACTION {action}");
                 });
             }
         }
 
-        public Task ReceiveTask { get => receiveTask; }
+        public Task ReceiveTask { get; private set; }
 
         async Task Receive()
         {

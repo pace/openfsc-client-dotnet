@@ -5,7 +5,7 @@ class Program
 {
     static void Main(string[] args)
     {
-        FuelingSiteConnect.Client fsc = new FuelingSiteConnect.Client(new string[] { "PRODUCTS", "PRICES", "PUMPS", "PUMPSTATUS", "TRANSACTIONS", "CLEAR", "UNLOCKPUMP", "LOCKPUMP" });
+        Client fsc = new Client(new string[] { "PRODUCTS", "PRICES", "PUMPS", "PUMPSTATUS", "TRANSACTIONS", "CLEAR", "UNLOCKPUMP", "LOCKPUMP" });
         fsc.Connect(new Uri("wss://fsc.sandbox.k8s.pacelink.net/ws/text")).Wait();
 
         var session = fsc.Session;  // or multiple: .NewSession("<prefix>");
@@ -31,7 +31,7 @@ class Program
     }
 
     /* DELEGATES IMPLEMENTATION */
-    static (int code, string message) SendProducts(FuelingSiteConnect.Session fscs)
+    static (int code, string message) SendProducts(Session fscs)
     {
         // Return all product mappings for all products available at the forecourt
 
@@ -42,7 +42,7 @@ class Program
         return (200, null);
     }
 
-    static (int code, string message) SendPrices(FuelingSiteConnect.Session fscs)
+    static (int code, string message) SendPrices(Session fscs)
     {
         // Return prices for all products available at the forecourt
 
@@ -53,7 +53,7 @@ class Program
         return (200, null);
     }
 
-    static (int code, string message) SendPumps(FuelingSiteConnect.Session fscs)
+    static (int code, string message) SendPumps(Session fscs)
     {
         // Return status for all pumps at the site
 
@@ -66,7 +66,7 @@ class Program
         return (200, null);
     }
 
-    static (int code, string message) SendPumpStatus(FuelingSiteConnect.Session fscs, int pump, int updateTTL = 0)
+    static (int code, string message) SendPumpStatus(Session fscs, int pump, int updateTTL = 0)
     {
         // Return status for given pumps
         if (pump == 3)
@@ -79,7 +79,7 @@ class Program
         // If updateTTL > 0: Send pump status changes pro-actively for given amount of seconds.
     }
 
-    static (int code, string message) SendTransactions(FuelingSiteConnect.Session fscs, int pump = 0, int updateTTL = 0)
+    static (int code, string message) SendTransactions(Session fscs, int pump = 0, int updateTTL = 0)
     {
         if (pump == 3 || pump == 0)
         {
@@ -92,14 +92,14 @@ class Program
         // If updateTTL > 0: Send transactions matching mathing the pump selection pro-actively for given amount of seconds.
     }
 
-    static (int code, string message) PanReceived(FuelingSiteConnect.Session fscs, string paceTransactionId, string pan)
+    static (int code, string message) PanReceived(Session fscs, string paceTransactionId, string pan)
     {
         // Do whatever you want with the PAN ;-)
 
         return (200, null);
     }
 
-    static (int code, string message) ClearTransaction(FuelingSiteConnect.Session fscs, int pump, string siteTransactionId, string paceTransactionId)
+    static (int code, string message) ClearTransaction(Session fscs, int pump, string siteTransactionId, string paceTransactionId)
     {
         // 1. Clear the transaction
         // 2. Maybe send additional data using fscs.ReceiptInfo()
@@ -112,14 +112,14 @@ class Program
         //return (410, "SiteTransactionID not open any longer");
     }
 
-    static (int code, string message) UnlockPump(FuelingSiteConnect.Session fscs, int pump, string currency, decimal credit, string paceTransactionId, string[] productIds)
+    static (int code, string message) UnlockPump(Session fscs, int pump, string currency, decimal credit, string paceTransactionId, string[] productIds)
     {
         // 1. Unload the pump for given credit and productIds if given
         // return (200, null);
         return (404, "PumpID unknown");
     }
 
-    static (int code, string message) LockPump(FuelingSiteConnect.Session fscs, int pump = 0)
+    static (int code, string message) LockPump(Session fscs, int pump = 0)
     {
         // 1. Lock the pump again if fueling hasn't been started in the meantime.
         // return (200, null);
