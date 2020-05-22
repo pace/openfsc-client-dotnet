@@ -108,11 +108,9 @@ namespace FuelingSiteConnect
 
         internal static Message fromMethod(string method)
         {
-            Console.WriteLine($"Searching for method {method}");
             var message = typeof(Message).GetFields(BindingFlags.Static | BindingFlags.Public)
               .Select(f => (Message)f.GetValue(null))
               .First(f => f.method.Equals(method));
-            Console.WriteLine($"Found {method}");
 
             if (message != null)
             {
@@ -120,6 +118,11 @@ namespace FuelingSiteConnect
             }
 
             throw new NotImplementedException();
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is Message && ((Message)obj).method.Equals(method);
         }
 
         // Server messages
@@ -163,8 +166,7 @@ namespace FuelingSiteConnect
         public static Message Heartbeat = new Message("HEARTBEAT", (session, input) =>
         {
             return new Response(
-                //  Option: .ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK")
-                Beat.WithArguments(DateTime.Now.ToString("0")),
+                Beat.WithArguments(DateTime.Now.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK")),
                 Ok
             );
         });

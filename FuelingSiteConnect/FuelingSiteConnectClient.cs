@@ -82,9 +82,20 @@ namespace FuelingSiteConnect
             // Todo: parse response + hand over to running "ListSessions()"
         }
 
-        private Dictionary<string, Message> responses = new Dictionary<string, Message>();
+        class Response
+        {
+            public List<Message> messages;
+            public bool finishedTransmission;
 
-        public async Task<Message> SendMessage(Message message, bool expectResponse = false, string tag = "*")
+            public Response()
+            {
+                this.messages = new List<Message>();
+                this.finishedTransmission = false;
+            }
+        }
+        private Dictionary<string, Response> responses = new Dictionary<string, Response>();
+
+        public async Task<List<Message>> SendMessage(Message message, bool expectResponse = false, string tag = "*")
         {
             if (!CapabilitySupported(message.method)) {
                 Console.WriteLine($"Method not supported by Server: {message.method}.");
@@ -99,18 +110,20 @@ namespace FuelingSiteConnect
 
             await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes($"{data}\r\n")), WebSocketMessageType.Text, true, CancellationToken.None);
 
-            if (expectResponse)
-            {
-                while (!responses.ContainsKey(tag))
-                {
-                    Thread.Sleep(10);
-                }
+            //if (expectResponse)
+            //{
+            //    responses.Add(tag, new Response());
+            //    Console.WriteLine($"<<< Waiting for {tag} >>>");
+            //    while (!responses[tag].finishedTransmission)
+            //    {
+            //        Thread.Sleep(10);
+            //    }
 
-                var value = responses[tag];
-                responses.Remove(tag);
+            //    var value = responses[tag];
+            //    responses.Remove(tag);
 
-                return value;
-            }
+            //    return value.messages;
+            //}
 
             return null;
         }
@@ -163,12 +176,18 @@ namespace FuelingSiteConnect
                             Session.HandleAction(action);
                             break;
                     }
-
-                    Console.WriteLine($"ACTION {action}");
                 });
             }
 
-            responses.Add(tag, message);
+            if (tag != "*" && responses.ContainsKey(tag))
+            {
+                responses[tag].messages.Add(message);
+
+                if (message.Equals(Message.Ok) || message.Equals(Message.Error))
+                {
+                    responses[tag].finishedTransmission = true;
+                }
+            }
         }
 
         public Task ReceiveTask { get; private set; }
