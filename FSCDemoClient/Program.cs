@@ -37,7 +37,7 @@ class Program : ISessionDelegate
             MessageBuilder.Price("0010", "LTR", "EUR", (decimal)1.759, "Super Plus"),
             MessageBuilder.Price("0020", "LTR", "EUR", (decimal)1.439, "Diesel"),
             MessageBuilder.Price("0030", "LTR", "EUR", (decimal)1.659, "Super 95")
-    };
+        };
     }
 
     Message[] ISessionDelegate.SessionGetPumps(Session session)
@@ -78,7 +78,8 @@ class Program : ISessionDelegate
         // 1. Clear the transaction
         // 2. Optional send additional data using MessageBuilder.ReceiptInfo()
         if (pump == 3)
-            return new Message[] { MessageBuilder.ReceiptInfo(paceTransactionId, "foo", "bar") };
+            return new Message[0];
+            //return new Message[] { MessageBuilder.ReceiptInfo(paceTransactionId, "foo", "bar") };
 
         throw new SessionClearSiteTransactionIDUnknownException();
         //throw new SessionClearSiteTransactionIDExpiredException();

@@ -50,15 +50,15 @@ namespace FuelingSiteConnect
         {
             this.siteAccessKey = siteAccessKey;
             this.secret = secret;
-            await SendMessage(Message.PlainAuth.WithArguments(siteAccessKey, secret));
+            await SendMessage(Message.PlainAuth.WithArguments(siteAccessKey, secret), true);
         }
 
         public async Task Quit(string reason = "Bye bye")
         {
-            await SendMessage(Message.Quit.WithArguments(reason));
+            await SendMessage(Message.Quit.WithArguments(reason), true);
         }
 
-        private async Task SendMessage(Message message, bool expectResponse = true, string tag = "*")
+        private async Task SendMessage(Message message, bool expectResponse = false, string tag = "*")
         {
             if (expectResponse)
             {

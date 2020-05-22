@@ -110,20 +110,20 @@ namespace FuelingSiteConnect
 
             await socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes($"{data}\r\n")), WebSocketMessageType.Text, true, CancellationToken.None);
 
-            //if (expectResponse)
-            //{
-            //    responses.Add(tag, new Response());
-            //    Console.WriteLine($"<<< Waiting for {tag} >>>");
-            //    while (!responses[tag].finishedTransmission)
-            //    {
-            //        Thread.Sleep(10);
-            //    }
+            if (expectResponse)
+            {
+                responses.Add(tag, new Response());
+                Console.WriteLine($"<<< Waiting for {tag} >>>");
+                while (!responses[tag].finishedTransmission)
+                {
+                    Thread.Sleep(10);
+                }
 
-            //    var value = responses[tag];
-            //    responses.Remove(tag);
+                var value = responses[tag];
+                responses.Remove(tag);
 
-            //    return value.messages;
-            //}
+                return value.messages;
+            }
 
             return null;
         }
@@ -156,7 +156,7 @@ namespace FuelingSiteConnect
 
             if (response.messages != null)
             {
-                response.messages.ForEach(f => SendMessage(f, false, tag).Wait());
+                response.messages.ForEach(f => SendMessage(f, false, f.isBroadcast ? "*" : tag).Wait());
             }
 
             if (response.actions != null)
