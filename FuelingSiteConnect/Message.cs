@@ -5,6 +5,11 @@ using System.Reflection;
 
 namespace FuelingSiteConnect
 {
+    internal struct StatusCode
+    {
+        internal static string notFound = "404";
+    }
+
     class Response
     {
         internal List<Message> messages;
@@ -107,6 +112,7 @@ namespace FuelingSiteConnect
             var message = typeof(Message).GetFields(BindingFlags.Static | BindingFlags.Public)
               .Select(f => (Message)f.GetValue(null))
               .First(f => f.method.Equals(method));
+            Console.WriteLine($"Found {method}");
 
             if (message != null)
             {
@@ -140,15 +146,12 @@ namespace FuelingSiteConnect
 
         public static Message Products = new Message("PRODUCTS", (session, input) =>
         {
-            if (session.productsDelegate == null)
-                return new Response(Error.WithArguments(500.ToString(), "Can't handle request: No PRODUCTS delegate registered."));
-            else
+            var result = session.sessionDelegate.SessionGetProducts(session);
+            if (result == null || result.Length == 0)
             {
-                var (code, message) = session.productsDelegate(session);
-                if (code == 200)
-                    return new Response(Ok);
-                else
-                    return new Response(Error.WithArguments(code.ToString(), message));
+                return new Response(Error.WithArguments(StatusCode.notFound));
+            } else {
+                return new Response(result);
             }
         });
 
@@ -161,133 +164,162 @@ namespace FuelingSiteConnect
         {
             return new Response(
                 //  Option: .ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK")
-                Message.Beat.WithArguments(DateTime.Now.ToString("0")),
-                Message.Ok
+                Beat.WithArguments(DateTime.Now.ToString("0")),
+                Ok
             );
         });
 
         public static Message Prices = new Message("PRICES", (session, input) =>
         {
-            if (session.pricesDelegate == null)
-                return new Response(Error.WithArguments(500.ToString(), "Can't handle request: No PRICES delegate registered."));
+            var result = session.sessionDelegate.SessionGetPrices(session);
+            if (result == null || result.Length == 0)
+            {
+                return new Response(Error.WithArguments(StatusCode.notFound));
+            }
             else
             {
-                var (code, message) = session.pricesDelegate(session);
-                if (code == 200)
-                    return new Response(Ok);
-                else
-                    return new Response(Error.WithArguments(code.ToString(), message));
+                return new Response(result);
             }
         });
 
         public static Message Pumps = new Message("PUMPS", (session, input) =>
         {
-            if (session.pumpsDelegate == null)
-                return new Response(Error.WithArguments(500.ToString(), "Can't handle request: No PUMPS delegate registered."));
+            var result = session.sessionDelegate.SessionGetPumps(session);
+            if (result == null || result.Length == 0)
+            {
+                return new Response(Error.WithArguments(StatusCode.notFound));
+            }
             else
             {
-                var (code, message) = session.pumpsDelegate(session);
-                if (code == 200)
-                    return new Response(Ok);
-                else
-                    return new Response(Error.WithArguments(code.ToString(), message));
+                return new Response(result);
             }
         });
 
         public static Message PumpStatus = new Message("PUMPSTATUS", (session, input) =>
         {
-            if (session.pumpStatusDelegate == null)
-                return new Response(Error.WithArguments(500.ToString(), "Can't handle request: No PUMPSTATUS delegate registered."));
+            var result = session.sessionDelegate.SessionGetPumpStatus(session, Int32.Parse(input[0]), input.Count() > 1 ? Int32.Parse(input[1]) : 0);
+            if (result == null)
+            {
+                return new Response(Error.WithArguments(StatusCode.notFound));
+            }
             else
             {
-                // TODO: Extension GetOrDefault(1, 0)
-                // TODO: OkOrError(200, code, message);
-                var (code, message) = session.pumpStatusDelegate(session, Int32.Parse(input[0]), input.Count() > 1 ? Int32.Parse(input[1]) : 0);
-                if (code == 200)
-                    return new Response(Ok);
-                else
-                    return new Response(Error.WithArguments(code.ToString(), message));
+                return new Response(result);
             }
         });
 
         public static Message Transactions = new Message("TRANSACTIONS", (session, input) =>
         {
-            if (session.transactionsDelegate == null)
-                return new Response(Error.WithArguments(500.ToString(), "Can't handle request: No TRANSACTIONS delegate registered."));
+            var result = session.sessionDelegate.SessionGetTransactions(session, input.Count() > 0 ? Int32.Parse(input[0]) : 0, 0);
+            if (result == null || result.Length == 0)
+            {
+                return new Response(Error.WithArguments(StatusCode.notFound));
+            }
             else
             {
-                // TODO: Extension GetOrDefault(1, 0)
-                // TODO: OkOrError(200, code, message);
-                var (code, message) = session.transactionsDelegate(session, input.Count() > 0 ? Int32.Parse(input[0]) : 0);
-                if (code == 200)
-                    return new Response(Ok);
-                else
-                    return new Response(Error.WithArguments(code.ToString(), message));
+                return new Response(result);
             }
         });
 
         public static Message PAN = new Message("PAN", (session, input) =>
         {
-            if (session.panDelegate == null)
-                return new Response(Error.WithArguments(500.ToString(), "Can't handle request: No PAN delegate registered."));
-            else
-            {
-                // TODO: Extension GetOrDefault(1, 0)
-                // TODO: OkOrError(200, code, message);
-                var (code, message) = session.panDelegate(session, input[0], input[1]);
-                if (code == 200)
-                    return new Response(Ok);
-                else
-                    return new Response(Error.WithArguments(code.ToString(), message));
-            }
+            session.sessionDelegate.SessionPanMessage(session, input[0], input[1]);
+            return new Response(Ok);
         });
 
         public static Message ClearTransaction = new Message("CLEAR", (session, input) =>
         {
-            if (session.clearTransactionDelegate == null)
-                return new Response(Error.WithArguments(500.ToString(), "Can't handle request: No CLEAR delegate registered."));
+            var result = session.sessionDelegate.SessionClearTransaction(session, Int32.Parse(input[0]), input.Count() > 1 ? input[1] : null, input.Count() > 2 ? input[2] : null);
+            if (result == null || result.Length == 0)
+            {
+                return new Response(Error.WithArguments(StatusCode.notFound));
+            }
             else
             {
-                // TODO: Extension GetOrDefault(1, 0)
-                // TODO: OkOrError(200, code, message);
-                var (code, message) = session.clearTransactionDelegate(session, Int32.Parse(input[0]), input.Count() > 1 ? input[1] : null, input.Count() > 2 ? input[2] : null);
-                if (code == 200)
-                    return new Response(Ok);
-                else
-                    return new Response(Error.WithArguments(code.ToString(), message));
+                return new Response(result);
             }
         });
 
         public static Message UnlockPump = new Message("UNLOCKPUMP", (session, input) =>
         {
-            if (session.unlockPumpDelegate == null)
-                return new Response(Error.WithArguments(500.ToString(), "Can't handle request: No UNLOCKPUMP delegate registered."));
+            var result = session.sessionDelegate.SessionUnlockPump(session, Int32.Parse(input[0]), input.Count() > 1 ? input[1] : null, Decimal.Parse(input[2]), input.Count() > 3 ? input[3] : null, input);
+            if (!result)
+            {
+                return new Response(Error.WithArguments(StatusCode.notFound));
+            }
             else
             {
-                // TODO: Extension GetOrDefault(1, 0)
-                // TODO: OkOrError(200, code, message);
-                var (code, message) = session.unlockPumpDelegate(session, Int32.Parse(input[0]), input.Count() > 1 ? input[1] : null, Decimal.Parse(input[2]), input.Count() > 3 ? input[3] : null, input);
-                if (code == 200)
-                    return new Response(Ok);
-                else
-                    return new Response(Error.WithArguments(code.ToString(), message));
+                return new Response(Ok);
             }
         });
 
         public static Message LockPump = new Message("LOCKPUMP", (session, input) =>
         {
-            if (session.unlockPumpDelegate == null)
-                return new Response(Error.WithArguments(500.ToString(), "Can't handle request: No UNLOCKPUMP delegate registered."));
+            var result = session.sessionDelegate.SessionLockPump(session, Int32.Parse(input[0]));
+            if (!result)
+            {
+                return new Response(Error.WithArguments(StatusCode.notFound));
+            }
             else
             {
-                // TODO: Extension GetOrDefault(1, 0)
-                // TODO: OkOrError(200, code, message);
-                var (code, message) = session.unlockPumpDelegate(session, Int32.Parse(input[0]), input.Count() > 1 ? input[1] : null, Decimal.Parse(input[2]), input.Count() > 3 ? input[3] : null, input);
-                if (code == 200)
-                    return new Response(Ok);
-                else
-                    return new Response(Error.WithArguments(code.ToString(), message));
+                return new Response(Ok);
             }
         });
     };
+
+
+    // Helper
+    public class MessageBuilder
+    {
+        public static Message Price(string productId, string unit, string currency, decimal pricePerUnit, string description)
+        {
+            return Message.Price.WithArguments(productId, unit, currency, $"{pricePerUnit:0.0000}", description);
+        }
+
+        public static Message Product(string productId, string category, decimal vatRate)
+        {
+            return Message.Product.WithArguments(productId, category, $"{vatRate:0.00}");
+        }
+
+        public static Message Pump(int pump, string status)
+        {
+            return Message.Pump.WithArguments(pump.ToString(), status);
+        }
+
+        public static Message Transaction(
+            int pump,
+            string siteTransactionId,
+            string status,
+            string productId,
+            string currency,
+            decimal priceWithVat,
+            decimal priceWithoutVat,
+            decimal vatRate,
+            decimal vatAmount,
+            string unit,
+            decimal volume,
+            decimal pricePerUnit
+            )
+        {
+            return Message.Transaction.WithArguments(
+                pump.ToString(),
+                siteTransactionId,
+                status,
+                productId,
+                currency,
+                $"{priceWithVat:0.00}",
+                $"{priceWithoutVat:0.00}",
+                $"{vatRate:0.00}",
+                $"{vatAmount:0.00}",
+                $"{unit}",
+                $"{volume:0.0000}",
+                $"{pricePerUnit:0.0000}"
+                );
+        }
+
+        public static Message ReceiptInfo(string paceTransactionId, string key, string value)
+        {
+            return Message.ReceiptInfo.WithArguments(paceTransactionId, key, value);
+        }
+    }
 }

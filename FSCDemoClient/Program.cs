@@ -1,7 +1,7 @@
 ﻿using System;
 using FuelingSiteConnect;
 
-class Program
+class Program : ISessionDelegate
 {
     static void Main(string[] args)
     {
@@ -9,17 +9,7 @@ class Program
         fsc.Connect(new Uri("wss://fsc.sandbox.k8s.pacelink.net/ws/text")).Wait();
 
         var session = fsc.Session;  // or multiple: .NewSession("<prefix>");
-
-        session.productsDelegate = SendProducts;
-        session.pricesDelegate = SendPrices;
-        session.pumpsDelegate = SendPumps;
-        session.pumpStatusDelegate = SendPumpStatus;
-        session.transactionsDelegate = SendTransactions;
-        session.panDelegate = PanReceived;
-        session.clearTransactionDelegate = ClearTransaction;
-        session.unlockPumpDelegate = UnlockPump;
-        session.lockPumpDelegate = LockPump;
-
+        session.sessionDelegate = new Program();
         session.Authenticate("329dd8cf-f841-4017-bc60-3228d8344931", "d96dc44bbd25f15d061351a29c9576e4").Wait();
 
         // Always send price and product changes when they occur
@@ -30,100 +20,81 @@ class Program
         fsc.ReceiveTask.Wait();
     }
 
-    /* DELEGATES IMPLEMENTATION */
-    static (int code, string message) SendProducts(Session fscs)
+    Message[] ISessionDelegate.SessionGetProducts(Session session)
     {
-        // Return all product mappings for all products available at the forecourt
-
-        fscs.Product("0020", "diesel", (decimal)0.19).Wait();
-        fscs.Product("0030", "ron95e5", (decimal)0.19).Wait();
-        fscs.Product("0010", "ron98", (decimal)0.19).Wait();
-
-        return (200, null);
-    }
-
-    static (int code, string message) SendPrices(Session fscs)
-    {
-        // Return prices for all products available at the forecourt
-
-        fscs.Price("0010", "LTR", "EUR", (decimal)1.759, "Super Plus").Wait();
-        fscs.Price("0020", "LTR", "EUR", (decimal)1.439, "Diesel").Wait();
-        fscs.Price("0030", "LTR", "EUR", (decimal)1.659, "Super 95").Wait();
-
-        return (200, null);
-    }
-
-    static (int code, string message) SendPumps(Session fscs)
-    {
-        // Return status for all pumps at the site
-
-        fscs.Pump(1, "free").Wait();
-        fscs.Pump(2, "free").Wait();
-        fscs.Pump(3, "ready-to-pay").Wait();
-        fscs.Pump(4, "free").Wait();
-        fscs.Pump(5, "free").Wait();
-
-        return (200, null);
-    }
-
-    static (int code, string message) SendPumpStatus(Session fscs, int pump, int updateTTL = 0)
-    {
-        // Return status for given pumps
-        if (pump == 3)
-            fscs.Pump(pump, "ready-to-pay").Wait();
-        else
-            fscs.Pump(pump, "free").Wait();
-
-        return (200, null);
-
-        // If updateTTL > 0: Send pump status changes pro-actively for given amount of seconds.
-    }
-
-    static (int code, string message) SendTransactions(Session fscs, int pump = 0, int updateTTL = 0)
-    {
-        if (pump == 3 || pump == 0)
+        return new Message[]
         {
-            fscs.Transaction(3, "asdf", "open", "0010", "EUR", (decimal)59.50, (decimal)50.0, (decimal)0.19, (decimal)9.50, "LTR", (decimal)47.11, (decimal)1.119).Wait();
-            return (200, null);
-        }
-        else
-            return (404, "No transactions found");
-
-        // If updateTTL > 0: Send transactions matching mathing the pump selection pro-actively for given amount of seconds.
+            MessageBuilder.Product("0020", "diesel", (decimal)0.19),
+            MessageBuilder.Product("0030", "ron95e5", (decimal)0.19),
+            MessageBuilder.Product("0010", "ron98", (decimal)0.19)
+        };
     }
 
-    static (int code, string message) PanReceived(Session fscs, string paceTransactionId, string pan)
+    Message[] ISessionDelegate.SessionGetPrices(Session session)
+    {
+        return new Message[]
+        {
+            MessageBuilder.Price("0010", "LTR", "EUR", (decimal)1.759, "Super Plus"),
+            MessageBuilder.Price("0020", "LTR", "EUR", (decimal)1.439, "Diesel"),
+            MessageBuilder.Price("0030", "LTR", "EUR", (decimal)1.659, "Super 95")
+    };
+    }
+
+    Message[] ISessionDelegate.SessionGetPumps(Session session)
+    {
+        return new Message[]
+        {
+            MessageBuilder.Pump(1, "free"),
+            MessageBuilder.Pump(2, "free"),
+            MessageBuilder.Pump(3, "ready-to-pay"),
+            MessageBuilder.Pump(4, "free"),
+            MessageBuilder.Pump(5, "free")
+        };
+    }
+
+    Message ISessionDelegate.SessionGetPumpStatus(Session session, int pump, int updateTTL)
+    {
+        if (pump == 3)
+            return MessageBuilder.Pump(pump, "ready-to-pay");
+        else
+            return MessageBuilder.Pump(pump, "free");
+    }
+
+    Message[] ISessionDelegate.SessionGetTransactions(Session session, int pump, int updateTTL)
+    {
+        return new Message[]
+        {
+            MessageBuilder.Transaction(3, "asdf", "open", "0010", "EUR", (decimal)59.50, (decimal)50.0, (decimal)0.19, (decimal)9.50, "LTR", (decimal)47.11, (decimal)1.119)
+        };
+    }
+
+    void ISessionDelegate.SessionPanMessage(Session session, string paceTransactionId, string pan)
     {
         // Do whatever you want with the PAN ;-)
-
-        return (200, null);
     }
 
-    static (int code, string message) ClearTransaction(Session fscs, int pump, string siteTransactionId, string paceTransactionId)
+    Message[] ISessionDelegate.SessionClearTransaction(Session session, int pump, string siteTransactionId, string paceTransactionId)
     {
         // 1. Clear the transaction
-        // 2. Maybe send additional data using fscs.ReceiptInfo()
-        // return (200, null);
+        // 2. Optional send additional data using MessageBuilder.ReceiptInfo()
         if (pump == 3)
-            return (200, null);
-        else
-            return (404, "PumpID unknown");
-        //return (404, "SiteTransactionID unknown");
-        //return (410, "SiteTransactionID not open any longer");
+            return new Message[] { MessageBuilder.ReceiptInfo(paceTransactionId, "foo", "bar") };
+
+        throw new SessionClearSiteTransactionIDUnknownException();
+        //throw new SessionClearSiteTransactionIDExpiredException();
     }
 
-    static (int code, string message) UnlockPump(Session fscs, int pump, string currency, decimal credit, string paceTransactionId, string[] productIds)
+    bool ISessionDelegate.SessionUnlockPump(Session session, int pump, string currency, decimal credit, string paceTransactionId, string[] productIds)
     {
         // 1. Unload the pump for given credit and productIds if given
-        // return (200, null);
-        return (404, "PumpID unknown");
+        // return true;
+
+        throw new UnlockPumpIDUnknownException();
     }
 
-    static (int code, string message) LockPump(Session fscs, int pump = 0)
+    bool ISessionDelegate.SessionLockPump(Session session, int pump)
     {
-        // 1. Lock the pump again if fueling hasn't been started in the meantime.
-        // return (200, null);
-        return (404, "PumpID unknown");
+        // return true;
+        throw new LockPumpIDUnknownException();
     }
-
 }

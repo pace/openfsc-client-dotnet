@@ -8,15 +8,23 @@ namespace FuelingSiteConnect
 {
     // Delegates to be implemented by POS connector
     // TODO: Why no interface?
-    public delegate (int code, string message) ProductsRequestDelegate(Session fscs);
-    public delegate (int code, string message) PricesRequestDelegate(Session fscs);
-    public delegate (int code, string message) PumpsRequestDelegate(Session fscs);
-    public delegate (int code, string message) PumpStatusRequestDelegate(Session fscs, int pump, int updateTTL = 0);
-    public delegate (int code, string message) TransactionsRequestDelegate(Session fscs, int pump = 0, int updateTTL = 0);
-    public delegate (int code, string message) PanMessageDelegate(Session fscs, string paceTransactionId, string pan);
-    public delegate (int code, string message) ClearTransactionRequestDelegate(Session fscs, int pump, string siteTransactionId, string paceTransactionId);
-    public delegate (int code, string message) UnlockPumpRequestDelegate(Session fscs, int pump, string currency, decimal credit, string paceTransactionId, string[] productIds);
-    public delegate (int code, string message) LockPumpRequestDelegate(Session fscs, int pump);
+    public interface ISessionDelegate
+    {
+        Message[] SessionGetProducts(Session session);
+        Message[] SessionGetPrices(Session session);
+        Message[] SessionGetPumps(Session session);
+        Message SessionGetPumpStatus(Session session, int pump, int updateTTL);
+        Message[] SessionGetTransactions(Session session, int pump, int updateTTL);
+        void SessionPanMessage(Session session, string paceTransactionId, string pan);
+        Message[] SessionClearTransaction(Session session, int pump, string siteTransactionId, string paceTransactionId);
+        bool SessionUnlockPump(Session session, int pump, string currency, decimal credit, string paceTransactionId, string[] productIds);
+        bool SessionLockPump(Session session, int pump);
+    }
+
+    public class SessionClearSiteTransactionIDUnknownException : Exception { };
+    public class SessionClearSiteTransactionIDExpiredException : Exception { };
+    public class UnlockPumpIDUnknownException : Exception { };
+    public class LockPumpIDUnknownException : Exception { };
 
     public class Session 
     {
@@ -30,15 +38,7 @@ namespace FuelingSiteConnect
         public bool authenticated { get; } = false;
         private string secret;
 
-        public ProductsRequestDelegate productsDelegate;
-        public PricesRequestDelegate pricesDelegate;
-        public PumpsRequestDelegate pumpsDelegate;
-        public PumpStatusRequestDelegate pumpStatusDelegate;
-        public TransactionsRequestDelegate transactionsDelegate;
-        public PanMessageDelegate panDelegate;
-        public ClearTransactionRequestDelegate clearTransactionDelegate;
-        public UnlockPumpRequestDelegate unlockPumpDelegate;
-        public LockPumpRequestDelegate lockPumpDelegate;
+        public ISessionDelegate sessionDelegate;
 
         public Session(Client client, string prefix = null)
         {
@@ -53,60 +53,9 @@ namespace FuelingSiteConnect
             await SendMessage(Message.PlainAuth.WithArguments(siteAccessKey, secret));
         }
 
-        public async Task Price(string productId, string unit, string currency, decimal pricePerUnit, string description) 
+        public async Task Quit(string reason = "Bye bye")
         {
-            await SendMessage(Message.Price.WithArguments(productId, unit, currency, $"{pricePerUnit:0.0000}", description), false);
-        }
-
-        public async Task Product(string productId, string category, decimal vatRate) 
-        {
-            await SendMessage(Message.Product.WithArguments(productId, category, $"{vatRate:0.00}"));
-        }
-
-        public async Task Pump(int pump, string status) 
-        {
-            await SendMessage(Message.Pump.WithArguments(pump.ToString(), status), false);
-        }
-
-        public async Task Transaction(
-            int pump,
-            string siteTransactionId,
-            string status,
-            string productId,
-            string currency,
-            decimal priceWithVat,
-            decimal priceWithoutVat,
-            decimal vatRate,
-            decimal vatAmount,
-            string unit,
-            decimal volume,
-            decimal pricePerUnit
-            ) 
-        {
-            await SendMessage(Message.Transaction.WithArguments(
-                pump.ToString(),
-                siteTransactionId,
-                status,
-                productId,
-                currency,
-                $"{priceWithVat:0.00}",
-                $"{priceWithoutVat:0.00}",
-                $"{vatRate:0.00}",
-                $"{vatAmount:0.00}",
-                $"{unit}",
-                $"{volume:0.0000}",
-                $"{pricePerUnit:0.0000}"
-                ), false);
-        }
-
-        public async Task ReceiptInfo(string paceTransactionId, string key, string value) 
-        {
-            await SendMessage(Message.ReceiptInfo.WithArguments(paceTransactionId, key, value), false);
-        }
-
-        public async Task Quit(string reason = "Bye bye") 
-        {
-            await SendMessage(Message.Quit.WithArguments(reason), false);
+            await SendMessage(Message.Quit.WithArguments(reason));
         }
 
         private async Task SendMessage(Message message, bool expectResponse = true, string tag = "*")

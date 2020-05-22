@@ -82,11 +82,13 @@ namespace FuelingSiteConnect
             // Todo: parse response + hand over to running "ListSessions()"
         }
 
-        public async Task SendMessage(Message message, bool expectResponse = false, string tag = "*")
+        private Dictionary<string, Message> responses = new Dictionary<string, Message>();
+
+        public async Task<Message> SendMessage(Message message, bool expectResponse = false, string tag = "*")
         {
             if (!CapabilitySupported(message.method)) {
                 Console.WriteLine($"Method not supported by Server: {message.method}.");
-                return;
+                return null;
             }
 
             if (expectResponse && tag == "*") tag = $"C{Session.nextSequence}";
@@ -99,8 +101,18 @@ namespace FuelingSiteConnect
 
             if (expectResponse)
             {
-                // TODO:
+                while (!responses.ContainsKey(tag))
+                {
+                    Thread.Sleep(10);
+                }
+
+                var value = responses[tag];
+                responses.Remove(tag);
+
+                return value;
             }
+
+            return null;
         }
 
         public async Task Quit(string message = "Bye bye") 
@@ -155,6 +167,8 @@ namespace FuelingSiteConnect
                     Console.WriteLine($"ACTION {action}");
                 });
             }
+
+            responses.Add(tag, message);
         }
 
         public Task ReceiveTask { get; private set; }
