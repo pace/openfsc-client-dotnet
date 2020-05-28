@@ -6,10 +6,16 @@ using System.Threading.Tasks;
 
 namespace FuelingSiteConnect 
 {
-    // Delegates to be implemented by POS connector
-    // TODO: Why no interface?
+    /// <summary>
+    /// To be implemented by POS connector
+    /// </summary>
     public interface ISessionDelegate
     {
+        /// <summary>
+        /// Returns XXX ... bla foo
+        /// </summary>
+        /// <param name="session"></param>
+        /// <returns></returns>
         Message[] SessionGetProducts(Session session);
         Message[] SessionGetPrices(Session session);
         Message[] SessionGetPumps(Session session);

@@ -325,14 +325,13 @@ namespace FuelingSiteConnect
             {
                 return new Message("CLEAR", (session, input) =>
                 {
-                    var result = session.sessionDelegate.SessionClearTransaction(session, Int32.Parse(input[0]), input.Count() > 1 ? input[1] : null, input.Count() > 2 ? input[2] : null);
-                    if (result == null || result.Length == 0)
+                    try
                     {
-                        return new Response(Error.WithArguments(StatusCode.notFound));
-                    }
-                    else
+                        var result = session.sessionDelegate.SessionClearTransaction(session, Int32.Parse(input[0]), input.Count() > 1 ? input[1] : null, input.Count() > 2 ? input[2] : null);
+                        return new Response(result, Ok);
+                    } catch (SessionClearSiteTransactionIDUnknownException exception)
                     {
-                        return new Response(result);
+                        return new Response(Error.WithArguments(StatusCode.notFound, "Transaction not found"));
                     }
                 });
             }
