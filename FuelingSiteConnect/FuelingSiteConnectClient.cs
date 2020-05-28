@@ -14,17 +14,17 @@ namespace FuelingSiteConnect
     {
         Uri endpoint;
         public ClientWebSocket socket;
-        public string[] clientCapabilities;
-        public string[] serverCapabilities;
+        public Message[] clientCapabilities;
+        public Message[] serverCapabilities;
         public Session Session { get; private set; }
         private Dictionary<string, Session> sessions = new Dictionary<string, Session>();
 
-        public Client(string[] implementedCapabilities)
+        public Client(params Message[] implementedCapabilities)
         {
             socket = new ClientWebSocket();
 
             var mergedCapabilities = implementedCapabilities.ToList();
-            mergedCapabilities.AddRange(new string[] { "HEARTBEAT", "SESSIONMODE", "QUIT" });
+            mergedCapabilities.AddRange(new Message[] { Message.Heartbeat, Message.SessionMode, Message.Quit });
             clientCapabilities = mergedCapabilities.ToArray();
         }
 
@@ -36,22 +36,29 @@ namespace FuelingSiteConnect
             ReceiveTask = Receive();
             Session = new Session(this);
 
-            await SendMessage(Message.Capability.WithArguments(clientCapabilities));
+            await SendMessage(Message.Capability.WithArguments(clientCapabilities.Select(x => x.method).ToArray()));
             await SendMessage(Message.Charset.WithArguments("UTF-8"), true);
         }
 
-        public bool CapabilitySupported(string serverCapability) 
+        public bool CapabilitySupported(Message message) 
         {
-            if (serverCapability == "CAPABILITY" ||
-                serverCapability == "OK" ||
-                serverCapability == "ERR") return true;
+            
+            if (Message.Capability.Equals(message) ||
+                Message.Ok.Equals(message) ||
+                Message.Error.Equals(message)) return true;
 
-            return Array.Exists(serverCapabilities, x => x == serverCapability);
+            return Array.Exists(serverCapabilities, x => message.Equals(x));
         }
 
         public Session NewSession(string prefix)
         {
             SendMessage(Message.NewSession.WithArguments(prefix), true).Wait();
+
+            //// Sync sessions
+            //var task = SendMessage(Message.Sessions, true);
+            //task.Wait();
+            //var serverSessions = task.Result;
+
             Session newSession = new Session(this, prefix);
             sessions.Add(prefix, newSession);
             return newSession;
@@ -77,11 +84,6 @@ namespace FuelingSiteConnect
             return result;
         }
 
-        private void HandleSessionResponse()
-        {
-            // Todo: parse response + hand over to running "ListSessions()"
-        }
-
         class Response
         {
             public List<Message> messages;
@@ -97,7 +99,7 @@ namespace FuelingSiteConnect
 
         public async Task<List<Message>> SendMessage(Message message, bool expectResponse = false, string tag = "*")
         {
-            if (!CapabilitySupported(message.method)) {
+            if (!CapabilitySupported(message)) {
                 Console.WriteLine($"Method not supported by Server: {message.method}.");
                 return null;
             }
@@ -166,9 +168,10 @@ namespace FuelingSiteConnect
                     switch (action)
                     {
                         case Action.SetServerCapabilities:
-                            serverCapabilities = message.arguments;
+                            serverCapabilities = message.arguments.Select(x => Message.fromMethod(x)).ToArray();
                             break;
 
+                        //case Action.ListSessions:
                         // Todo: parse response + hand over to running "ListSessions()"
                         // case Action.SessionResponse
 
@@ -197,23 +200,32 @@ namespace FuelingSiteConnect
             var buffer = new ArraySegment<byte>(new byte[2048]);
             do
             {
-                WebSocketReceiveResult result;
-                using (var ms = new MemoryStream())
+                try
                 {
-                    do
+                    WebSocketReceiveResult result;
+                    using (var ms = new MemoryStream())
                     {
-                        result = await socket.ReceiveAsync(buffer, CancellationToken.None);
-                        ms.Write(buffer.Array, buffer.Offset, result.Count);
-                    } while (!result.EndOfMessage);
+                        do
+                        {
+                            result = await socket.ReceiveAsync(buffer, CancellationToken.None);
+                            ms.Write(buffer.Array, buffer.Offset, result.Count);
+                        } while (!result.EndOfMessage);
 
-                    if (result.MessageType == WebSocketMessageType.Close)
-                        break;
+                        if (result.MessageType == WebSocketMessageType.Close)
+                            break;
 
-                    ms.Seek(0, SeekOrigin.Begin);
-                    using (var reader = new StreamReader(ms, Encoding.UTF8)) {
-                        ParseMessage((await reader.ReadToEndAsync()).Replace("\r\n",""));
+                        ms.Seek(0, SeekOrigin.Begin);
+                        using (var reader = new StreamReader(ms, Encoding.UTF8))
+                        {
+                            ParseMessage((await reader.ReadToEndAsync()).Replace("\r\n", ""));
+                        }
                     }
                 }
+                catch (IOException error)
+                {
+                    Console.WriteLine($"Netowork failure. Retrying connection in 5s. {error}");
+                    Thread.Sleep(5000);
+                } 
             } while (true);
 
             Console.WriteLine("Connection closed.");

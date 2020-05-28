@@ -157,7 +157,8 @@ namespace FuelingSiteConnect
             return obj is Message && ((Message)obj).method.Equals(method);
         }
 
-        // Server messages
+        // Client -> Server
+
         public static Message PlainAuth { get { return new Message("PLAINAUTH"); } }
         public static Message Price { get { return new Message("PRICE", true); } }
         public static Message Product { get { return new Message("PRODUCT", true); } }
@@ -173,7 +174,8 @@ namespace FuelingSiteConnect
         public static Message Sessions { get { return new Message("SESSIONS"); } }
 
 
-        // Client messages
+        // Server -> Client
+
         public static Message Capability
         {
             get

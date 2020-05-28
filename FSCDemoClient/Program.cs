@@ -5,7 +5,16 @@ class Program : ISessionDelegate
 {
     static void Main(string[] args)
     {
-        Client fsc = new Client(new string[] { "PRODUCTS", "PRICES", "PUMPS", "PUMPSTATUS", "TRANSACTIONS", "CLEAR", "UNLOCKPUMP", "LOCKPUMP" });
+        Client fsc = new Client(
+            Message.Products,
+            Message.Prices,
+            Message.Pumps,
+            Message.PumpStatus,
+            Message.Transactions,
+            Message.ClearTransaction,
+            Message.UnlockPump,
+            Message.LockPump);
+
         fsc.Connect(new Uri("wss://fsc.sandbox.k8s.pacelink.net/ws/text")).Wait();
 
         var session = fsc.Session;  // or multiple: .NewSession("<prefix>");
