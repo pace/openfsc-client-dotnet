@@ -19,7 +19,7 @@ class Program : ISessionDelegate
 
         var session = fsc.Session;  // or multiple: .NewSession("<prefix>");
         session.sessionDelegate = new Program();
-        session.Authenticate("329dd8cf-f841-4017-bc60-3228d8344931", "d96dc44bbd25f15d061351a29c9576e4").Wait();
+        session.Authenticate("493de297-8702-495e-97bf-d766657d6717", "fad6c2fd87aa1d05d3d97dca75f66358").Wait();
 
         // Always send price and product changes when they occur
         // If possible, send transactions and pump status updates when they occur (not needed, though)

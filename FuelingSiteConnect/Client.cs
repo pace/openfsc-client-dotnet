@@ -54,11 +54,6 @@ namespace FuelingSiteConnect
         {
             SendMessage(Message.NewSession.WithArguments(prefix), true).Wait();
 
-            //// Sync sessions
-            //var task = SendMessage(Message.Sessions, true);
-            //task.Wait();
-            //var serverSessions = task.Result;
-
             Session newSession = new Session(this, prefix);
             sessions.Add(prefix, newSession);
             return newSession;
@@ -70,11 +65,13 @@ namespace FuelingSiteConnect
             return sessions[prefix];
         }
 
-        // Todo: List all sessions (and sync with server before!)
+        // List all sessions (and sync with server before)
         public Session[] ListSessions() 
         {
-            SendMessage(Message.Sessions, true).Wait();
+            var task = SendMessage(Message.Sessions, true);
+            task.Wait();
 
+            //var serverSessions = task.Result;
             // Todo: Match returned session list with local session list
             // Throw out of sync error if lists don't match
 
@@ -170,10 +167,6 @@ namespace FuelingSiteConnect
                         case Action.SetServerCapabilities:
                             serverCapabilities = message.arguments.Select(x => Message.fromMethod(x)).ToArray();
                             break;
-
-                        //case Action.ListSessions:
-                        // Todo: parse response + hand over to running "ListSessions()"
-                        // case Action.SessionResponse
 
                         default:
                             Session.HandleAction(action);
