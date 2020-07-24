@@ -13,7 +13,8 @@ class Program : ISessionDelegate
             Message.Transactions,
             Message.ClearTransaction,
             Message.UnlockPump,
-            Message.LockPump);
+            Message.LockPump,
+            Message.Push);
 
         fsc.Connect(new Uri("wss://fsc.sandbox.k8s.pacelink.net/ws/text")).Wait();
 
@@ -31,6 +32,9 @@ class Program : ISessionDelegate
 
     Message[] ISessionDelegate.SessionGetProducts(Session session)
     {
+        // This is only needed if product updates are not proactively pushed using PUSH extension
+        return null;
+
         return new Message[]
         {
             MessageBuilder.Product("0020", "diesel", (decimal)0.19),
@@ -41,6 +45,9 @@ class Program : ISessionDelegate
 
     Message[] ISessionDelegate.SessionGetPrices(Session session)
     {
+        // This is only needed if price updates are not pushed using PUSH extension
+        return null;
+
         return new Message[]
         {
             MessageBuilder.Price("0010", "LTR", "EUR", (decimal)1.759, "Super Plus"),
@@ -56,6 +63,7 @@ class Program : ISessionDelegate
             MessageBuilder.Pump(1, "free"),
             MessageBuilder.Pump(2, "free"),
             MessageBuilder.Pump(3, "ready-to-pay"),
+            MessageBuilder.Transaction(3, "asdf", "open", "0010", "EUR", (decimal)59.50, (decimal)50.0, (decimal)0.19, (decimal)9.50, "LTR", (decimal)47.11, (decimal)1.119),
             MessageBuilder.Pump(4, "free"),
             MessageBuilder.Pump(5, "free")
         };
@@ -71,10 +79,19 @@ class Program : ISessionDelegate
 
     Message[] ISessionDelegate.SessionGetTransactions(Session session, int pump, int updateTTL)
     {
-        return new Message[]
+        if (pump == 0)
         {
-            MessageBuilder.Transaction(3, "asdf", "open", "0010", "EUR", (decimal)59.50, (decimal)50.0, (decimal)0.19, (decimal)9.50, "LTR", (decimal)47.11, (decimal)1.119)
-        };
+            // Return a list of all open transactions that have been authorized by Connected Fueling (via UNLOCKPUMP)
+            return new Message[] { };
+        }
+        else
+        {
+            // Return a list of all open transactions for the given pump number
+            return new Message[]
+            {
+                MessageBuilder.Transaction(3, "asdf", "open", "0010", "EUR", (decimal)59.50, (decimal)50.0, (decimal)0.19, (decimal)9.50, "LTR", (decimal)47.11, (decimal)1.119)
+            };
+        }
     }
 
     void ISessionDelegate.SessionPanMessage(Session session, string paceTransactionId, string pan)
@@ -106,5 +123,22 @@ class Program : ISessionDelegate
     {
         // return true;
         throw new LockPumpIDUnknownException();
+    }
+
+    Message[] ISessionDelegate.SessionPushRequest(Session session)
+    {
+        // Return all capabilities that the client will pro-actively push
+        return new Message[]
+        {
+            MessageBuilder.Pushing("PRODUCT"),
+            MessageBuilder.Product("0020", "diesel", (decimal)0.19),
+            MessageBuilder.Product("0030", "ron95e5", (decimal)0.19),
+            MessageBuilder.Product("0010", "ron98", (decimal)0.19),
+            MessageBuilder.Pushing("PRICE"),
+            MessageBuilder.Price("0010", "LTR", "EUR", (decimal)1.759, "Super Plus"),
+            MessageBuilder.Price("0020", "LTR", "EUR", (decimal)1.439, "Diesel"),
+            MessageBuilder.Price("0030", "LTR", "EUR", (decimal)1.659, "Super 95"),
+            MessageBuilder.Pushing("TRANSACTION")
+        };
     }
 }

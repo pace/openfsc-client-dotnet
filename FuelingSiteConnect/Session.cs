@@ -25,6 +25,7 @@ namespace FuelingSiteConnect
         Message[] SessionClearTransaction(Session session, int pump, string siteTransactionId, string paceTransactionId);
         bool SessionUnlockPump(Session session, int pump, string currency, decimal credit, string paceTransactionId, string[] productIds);
         bool SessionLockPump(Session session, int pump);
+        Message[] SessionPushRequest(Session session);
     }
 
     public class SessionClearSiteTransactionIDUnknownException : Exception { };
