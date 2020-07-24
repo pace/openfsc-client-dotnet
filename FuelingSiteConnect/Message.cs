@@ -172,6 +172,7 @@ namespace FuelingSiteConnect
         public static Message Charset { get { return new Message("CHARSET"); } }
         public static Message NewSession { get { return new Message("NEWSESSION"); } }
         public static Message Sessions { get { return new Message("SESSIONS"); } }
+        public static Message Pushing { get { return new Message("PUSHING"); } }
 
 
         // Server -> Client
@@ -196,7 +197,7 @@ namespace FuelingSiteConnect
                     var result = session.sessionDelegate.SessionGetProducts(session);
                     if (result == null || result.Length == 0)
                     {
-                        return new Response(Error.WithArguments(StatusCode.notFound));
+                        return new Response(Error.WithArguments(StatusCode.notFound, "Not implemented"));
                     }
                     else
                     {
@@ -240,7 +241,7 @@ namespace FuelingSiteConnect
                     var result = session.sessionDelegate.SessionGetPrices(session);
                     if (result == null || result.Length == 0)
                     {
-                        return new Response(Error.WithArguments(StatusCode.notFound));
+                        return new Response(Error.WithArguments(StatusCode.notFound, "Not implemented"));
                     }
                     else
                     {
@@ -259,7 +260,7 @@ namespace FuelingSiteConnect
                     var result = session.sessionDelegate.SessionGetPumps(session);
                     if (result == null || result.Length == 0)
                     {
-                        return new Response(Error.WithArguments(StatusCode.notFound));
+                        return new Response(Error.WithArguments(StatusCode.notFound, "Not implemented"));
                     }
                     else
                     {
@@ -278,7 +279,7 @@ namespace FuelingSiteConnect
                     var result = session.sessionDelegate.SessionGetPumpStatus(session, Int32.Parse(input[0]), input.Count() > 1 ? Int32.Parse(input[1]) : 0);
                     if (result == null)
                     {
-                        return new Response(Error.WithArguments(StatusCode.notFound));
+                        return new Response(Error.WithArguments(StatusCode.notFound, "Not implemented"));
                     }
                     else
                     {
@@ -297,7 +298,7 @@ namespace FuelingSiteConnect
                     var result = session.sessionDelegate.SessionGetTransactions(session, input.Count() > 0 ? Int32.Parse(input[0]) : 0, 0);
                     if (result == null || result.Length == 0)
                     {
-                        return new Response(Error.WithArguments(StatusCode.notFound));
+                        return new Response(Error.WithArguments(StatusCode.notFound, "Not implemented"));
                     }
                     else
                     {
@@ -346,7 +347,7 @@ namespace FuelingSiteConnect
                     var result = session.sessionDelegate.SessionUnlockPump(session, Int32.Parse(input[0]), input.Count() > 1 ? input[1] : null, Decimal.Parse(input[2]), input.Count() > 3 ? input[3] : null, input);
                     if (!result)
                     {
-                        return new Response(Error.WithArguments(StatusCode.notFound));
+                        return new Response(Error.WithArguments(StatusCode.notFound, "Not implemented"));
                     }
                     else
                     {
@@ -365,11 +366,30 @@ namespace FuelingSiteConnect
                     var result = session.sessionDelegate.SessionLockPump(session, Int32.Parse(input[0]));
                     if (!result)
                     {
-                        return new Response(Error.WithArguments(StatusCode.notFound));
+                        return new Response(Error.WithArguments(StatusCode.notFound, "Not implemented"));
                     }
                     else
                     {
                         return new Response(Ok);
+                    }
+                });
+            }
+        }
+
+        public static Message Push
+        {
+            get
+            {
+                return new Message("PUSH", (session, input) =>
+                {
+                    var result = session.sessionDelegate.SessionPushRequest(session);
+                    if (result == null || result.Length == 0)
+                    {
+                        return new Response(Error.WithArguments(StatusCode.notFound, "Not implemented"));
+                    }
+                    else
+                    {
+                        return new Response(result, Ok);
                     }
                 });
             }
@@ -429,6 +449,11 @@ namespace FuelingSiteConnect
         public static Message ReceiptInfo(string paceTransactionId, string key, string value)
         {
             return Message.ReceiptInfo.WithArguments(paceTransactionId, key, value);
+        }
+
+        public static Message Pushing(string capability)
+        {
+            return Message.Pushing.WithArguments(capability);
         }
     }
 }
