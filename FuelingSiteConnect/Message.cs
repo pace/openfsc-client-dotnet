@@ -328,7 +328,7 @@ namespace FuelingSiteConnect
                 {
                     try
                     {
-                        var result = session.sessionDelegate.SessionClearTransaction(session, Int32.Parse(input[0]), input.Count() > 1 ? input[1] : null, input.Count() > 2 ? input[2] : null);
+                        var result = session.sessionDelegate.SessionClearTransaction(session, Int32.Parse(input[0]), input.Count() > 1 ? input[1] : null, input.Count() > 2 ? input[2] : null, input.Count() > 3 ? input[3] : null);
                         return new Response(result, Ok);
                     } catch (SessionClearSiteTransactionIDUnknownException exception)
                     {
@@ -344,7 +344,7 @@ namespace FuelingSiteConnect
             {
                 return new Message("UNLOCKPUMP", (session, input) =>
                 {
-                    var result = session.sessionDelegate.SessionUnlockPump(session, Int32.Parse(input[0]), input.Count() > 1 ? input[1] : null, Decimal.Parse(input[2]), input.Count() > 3 ? input[3] : null, input);
+                    var result = session.sessionDelegate.SessionUnlockPump(session, Int32.Parse(input[0]), input.Count() > 1 ? input[1] : null, Decimal.Parse(input[2]), input.Count() > 3 ? input[3] : null, input.Count() > 4 ? input[4] : null, input.Count() > 5 ? input.Skip(5).Take(input.Length - 5).ToArray() : null);
                     if (!result)
                     {
                         return new Response(Error.WithArguments(StatusCode.notFound, "Not implemented"));
