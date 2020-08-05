@@ -22,8 +22,8 @@ namespace FuelingSiteConnect
         Message SessionGetPumpStatus(Session session, int pump, int updateTTL);
         Message[] SessionGetTransactions(Session session, int pump, int updateTTL);
         void SessionPanMessage(Session session, string paceTransactionId, string pan);
-        Message[] SessionClearTransaction(Session session, int pump, string siteTransactionId, string paceTransactionId);
-        bool SessionUnlockPump(Session session, int pump, string currency, decimal credit, string paceTransactionId, string[] productIds);
+        Message[] SessionClearTransaction(Session session, int pump, string siteTransactionId, string paceTransactionId, string paymentMethod);
+        bool SessionUnlockPump(Session session, int pump, string currency, decimal credit, string paceTransactionId, string paymentMethod, string[] productIds);
         bool SessionLockPump(Session session, int pump);
         Message[] SessionPushRequest(Session session);
     }

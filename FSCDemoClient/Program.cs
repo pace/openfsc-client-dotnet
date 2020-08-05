@@ -99,7 +99,7 @@ class Program : ISessionDelegate
         // Do whatever you want with the PAN ;-)
     }
 
-    Message[] ISessionDelegate.SessionClearTransaction(Session session, int pump, string siteTransactionId, string paceTransactionId)
+    Message[] ISessionDelegate.SessionClearTransaction(Session session, int pump, string siteTransactionId, string paceTransactionId, string paymentMethod)
     {
         // 1. Clear the transaction
         // 2. Optional send additional data using MessageBuilder.ReceiptInfo()
@@ -111,7 +111,7 @@ class Program : ISessionDelegate
         //throw new SessionClearSiteTransactionIDExpiredException();
     }
 
-    bool ISessionDelegate.SessionUnlockPump(Session session, int pump, string currency, decimal credit, string paceTransactionId, string[] productIds)
+    bool ISessionDelegate.SessionUnlockPump(Session session, int pump, string currency, decimal credit, string paceTransactionId, string paymentMethod, string[] productIds)
     {
         // 1. Unload the pump for given credit and productIds if given
         // return true;
